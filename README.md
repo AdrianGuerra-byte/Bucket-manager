@@ -27,18 +27,18 @@ Aplicación Next.js para gestión interna de archivos en buckets con interfaz li
 
 Crear un archivo `.env.local` con:
 
-\`\`\`env
+```env
 # URL del backend FastAPI
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
 # Credenciales para autenticación (server-only)
 TOKEN_CLIENT_ID=tu_client_id
 TOKEN_CLIENT_SECRET=tu_client_secret
-\`\`\`
+```
 
 ### Instalación
 
-\`\`\`bash
+```bash
 # Instalar dependencias
 pnpm install
 
@@ -50,11 +50,11 @@ pnpm build
 
 # Iniciar servidor de producción
 pnpm start
-\`\`\`
+```
 
 ## Estructura del Proyecto
 
-\`\`\`
+```
 ├── app/
 │   ├── api/auth/token/        # Proxy server-side para autenticación
 │   ├── buckets/[bucket]/      # Vista principal de bucket
@@ -76,7 +76,7 @@ pnpm start
 └── utils/
     ├── file-types.ts          # Utilidades para tipos de archivo
     └── formatters.ts          # Formateadores (tamaño, fecha)
-\`\`\`
+```
 
 ## Uso
 
