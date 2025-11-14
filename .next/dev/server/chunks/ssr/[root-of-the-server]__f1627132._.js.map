@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///home/guerra/Work/bucket_front/FileMngmt/app/page.tsx"],"sourcesContent":["import { redirect } from \"next/navigation\"\nimport { isAuthenticated } from \"@/lib/auth\"\n\nexport default async function HomePage() {\n  const authenticated = await isAuthenticated()\n\n  if (!authenticated) {\n    redirect(\"/login\")\n  }\n\n  redirect(\"/buckets/default\")\n}\n"],"names":[],"mappings":";;;;AAAA;AAAA;AACA;;;AAEe,eAAe;IAC5B,MAAM,gBAAgB,MAAM,IAAA,8HAAe;IAE3C,IAAI,CAAC,eAAe;QAClB,IAAA,gUAAQ,EAAC;IACX;IAEA,IAAA,gUAAQ,EAAC;AACX","debugId":null}}]
-}

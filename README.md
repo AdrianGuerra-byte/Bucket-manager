@@ -2,19 +2,24 @@
 
 Aplicación Next.js para gestión interna de archivos en buckets con interfaz limpia y accesible.
 
+# TODO:
+- [ ] Visualizar todos los Buckets disponibles
+- [ ] Subir archivos a un Bucket
+- [ ] Crear nuevas carpetas dentro de un Bucket
+- [ ] Mover archivos entre carpetas
+- [ ] Renombrar archivos y carpetas
+- [ ] Descargar múltiples archivos como ZIP
+
 ## Características
 
-- ✅ Autenticación basada en tokens (server-side proxy)
-- ✅ Listado de archivos con paginación
-- ✅ Eliminación simple y múltiple de archivos
-- ✅ Descarga de archivos
-- ✅ Vista previa de imágenes y PDFs
-- ✅ Navegación por carpetas con breadcrumbs
-- ✅ Búsqueda y filtrado por tipo
-- ✅ Ordenación por nombre, tamaño y fecha
-- ✅ Selección múltiple con shift/ctrl
-- ✅ Interfaz responsive y accesible
-- ✅ Estados de carga y manejo de errores
+- [x] Autenticación basada en tokens (server-side proxy)
+- [x] Listado de archivos con paginación
+- [x] Eliminación simple y múltiple de archivos
+- [x] Descarga de archivos
+- [x] Vista previa de imágenes y PDFs
+- [x] Navegación por carpetas con breadcrumbs
+- [x] Búsqueda y filtrado por tipo
+- [x] Ordenación por nombre, tamaño y fecha
 
 ## Configuración
 
@@ -92,14 +97,6 @@ La aplicación espera los siguientes endpoints en el backend FastAPI:
 - `DELETE /buckets/{bucket_name}/files/{filename}` - Eliminar un archivo
 - `GET /buckets/{bucket_name}/files/{filename}/download` - Descargar archivo
 
-## Accesibilidad
-
-- Navegación completa por teclado
-- Roles y etiquetas ARIA apropiadas
-- Indicadores de foco visibles
-- Textos alternativos para lectores de pantalla
-- Contraste de colores según WCAG 2.1
-
 ## Tecnologías
 
 - Next.js 16 (App Router)
@@ -107,7 +104,3 @@ La aplicación espera los siguientes endpoints en el backend FastAPI:
 - Tailwind CSS v4
 - shadcn/ui
 - React 19
-
-## Licencia
-
-Uso interno - Todos los derechos reservados
