@@ -1,0 +1,113 @@
+# Administrador de Archivos - Buckets
+
+Aplicación Next.js para gestión interna de archivos en buckets con interfaz limpia y accesible.
+
+## Características
+
+- ✅ Autenticación basada en tokens (server-side proxy)
+- ✅ Listado de archivos con paginación
+- ✅ Eliminación simple y múltiple de archivos
+- ✅ Descarga de archivos
+- ✅ Vista previa de imágenes y PDFs
+- ✅ Navegación por carpetas con breadcrumbs
+- ✅ Búsqueda y filtrado por tipo
+- ✅ Ordenación por nombre, tamaño y fecha
+- ✅ Selección múltiple con shift/ctrl
+- ✅ Interfaz responsive y accesible
+- ✅ Estados de carga y manejo de errores
+
+## Configuración
+
+### Variables de Entorno
+
+Crear un archivo `.env.local` con:
+
+\`\`\`env
+# URL del backend FastAPI
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+
+# Credenciales para autenticación (server-only)
+TOKEN_CLIENT_ID=tu_client_id
+TOKEN_CLIENT_SECRET=tu_client_secret
+\`\`\`
+
+### Instalación
+
+\`\`\`bash
+# Instalar dependencias
+pnpm install
+
+# Ejecutar en desarrollo
+pnpm dev
+
+# Construir para producción
+pnpm build
+
+# Iniciar servidor de producción
+pnpm start
+\`\`\`
+
+## Estructura del Proyecto
+
+\`\`\`
+├── app/
+│   ├── api/auth/token/        # Proxy server-side para autenticación
+│   ├── buckets/[bucket]/      # Vista principal de bucket
+│   └── layout.tsx             # Layout raíz
+├── components/
+│   ├── breadcrumbs.tsx        # Navegación por carpetas
+│   ├── confirm-modal.tsx      # Modal de confirmación
+│   ├── file-list.tsx          # Lista principal de archivos
+│   ├── file-preview.tsx       # Vista previa de archivos
+│   ├── file-row.tsx           # Componente de fila de archivo
+│   └── multi-select-toolbar.tsx # Barra de acciones múltiples
+├── hooks/
+│   └── use-api-client.ts      # Hook para cliente API
+├── lib/
+│   ├── api-client.ts          # Cliente centralizado para API
+│   └── auth.ts                # Lógica de autenticación server-side
+├── types/
+│   └── files.ts               # Interfaces TypeScript
+└── utils/
+    ├── file-types.ts          # Utilidades para tipos de archivo
+    └── formatters.ts          # Formateadores (tamaño, fecha)
+\`\`\`
+
+## Uso
+
+1. La aplicación se conecta automáticamente al backend configurado en `NEXT_PUBLIC_API_BASE_URL`
+2. La autenticación se maneja automáticamente usando el proxy server-side
+3. Navega a `/buckets/{nombre-del-bucket}` para ver los archivos
+4. Usa los filtros y búsqueda para encontrar archivos específicos
+5. Selecciona múltiples archivos con click + shift/ctrl para acciones masivas
+6. Haz click en un archivo para vista previa (imágenes y PDFs)
+
+## Endpoints del Backend
+
+La aplicación espera los siguientes endpoints en el backend FastAPI:
+
+- `POST /token` - Obtener token de acceso
+- `GET /buckets/{bucket_name}/files` - Listar archivos (soporta query param `subfolder`)
+- `DELETE /buckets/{bucket_name}/files` - Eliminar múltiples archivos (array de nombres)
+- `DELETE /buckets/{bucket_name}/files/{filename}` - Eliminar un archivo
+- `GET /buckets/{bucket_name}/files/{filename}/download` - Descargar archivo
+
+## Accesibilidad
+
+- Navegación completa por teclado
+- Roles y etiquetas ARIA apropiadas
+- Indicadores de foco visibles
+- Textos alternativos para lectores de pantalla
+- Contraste de colores según WCAG 2.1
+
+## Tecnologías
+
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- React 19
+
+## Licencia
+
+Uso interno - Todos los derechos reservados
