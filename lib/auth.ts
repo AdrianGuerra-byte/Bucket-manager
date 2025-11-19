@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers"
 import type { TokenResponse } from "@/types/files"
+import { ApiClient } from "./api-client"
 
 const TOKEN_COOKIE_NAME = "bucket_access_token"
 const TOKEN_EXPIRY_COOKIE_NAME = "bucket_token_expiry"
@@ -205,4 +206,13 @@ export async function getOrRefreshToken(): Promise<string> {
   }
 
   return token
+}
+
+
+export async function getApi(): Promise<ApiClient> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiUrl) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is not defined");
+  }
+  return new ApiClient(apiUrl, getOrRefreshToken);
 }

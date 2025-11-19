@@ -1,4 +1,5 @@
 export interface FileItem {
+  type: "file" | "folder"
   filename: string
   path?: string
   size?: number
@@ -24,9 +25,38 @@ export interface TokenResponse {
   permissions?: string[]
 }
 
+export interface BucketFile {
+  name: string
+  type: "file"
+  path: string
+  size: number
+  modified: string
+}
+
+export interface BucketFolder {
+  name: string
+  type: "folder"
+  path: string
+  children: (BucketFile | BucketFolder)[]
+}
+
+export type BucketStructure = (BucketFile | BucketFolder)[]
+
 export interface Bucket {
   name: string
-  file_count?: number
+  path: string
+  total_files: number
+  total_size_bytes: number
+  total_size_mb: number
+  structure: BucketStructure
+  created: string
+}
+
+export interface BucketsApiResponse {
+  total_buckets: number
+  buckets: Bucket[]
+  storage_path: string
+  include_files: boolean
 }
 
 export type SortField = "filename" | "size" | "modified" | "created_at"

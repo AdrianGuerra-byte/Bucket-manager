@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
-import { isAuthenticated } from "@/lib/auth"
-import { BucketSearch } from "@/components/bucket-search"
+import { isAuthenticated, getApi } from "@/lib/auth"
+import { BucketList } from "@/components/bucket-list"
 import { LogoutButton } from "@/components/logout-button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { FolderOpen } from "lucide-react"
@@ -11,6 +11,9 @@ export default async function HomePage() {
   if (!authenticated) {
     redirect("/login")
   }
+
+  const api = await getApi()
+  const { buckets } = await api.listBuckets()
 
   return (
     <div className="min-h-screen bg-background">
@@ -30,7 +33,8 @@ export default async function HomePage() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <BucketSearch />
+        <h2 className="text-xl font-semibold mb-6">Tus Buckets</h2>
+        <BucketList buckets={buckets} />
       </main>
     </div>
   )

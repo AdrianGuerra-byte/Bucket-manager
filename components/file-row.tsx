@@ -1,7 +1,7 @@
 "use client"
 
 import type { FileItem } from "@/types/files"
-import { formatFileSize, formatDate } from "@/utils/formatters"
+import { formatBytes, formatDate } from "@/utils/formatters"
 import { getFileIcon, isPreviewable } from "@/utils/file-types"
 import { Button } from "@/components/ui/button"
 import { Download, Eye, MoreVertical, Trash2 } from "lucide-react"
@@ -46,7 +46,7 @@ export function FileRow({ file, selected, onSelect, onPreview, onDownload, onDel
             {file.filename}
           </p>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{formatFileSize(file.size)}</span>
+            <span>{formatBytes(file.size)}</span>
             <span>•</span>
             <span>{formatDate(file.modified || file.created_at)}</span>
           </div>

@@ -1,16 +1,13 @@
-export function formatFileSize(bytes?: number): string {
-  if (!bytes) return "N/A"
+export function formatBytes(bytes?: number, decimals = 2): string {
+  if (!bytes || bytes === 0) return "0 Bytes"
 
-  const units = ["B", "KB", "MB", "GB", "TB"]
-  let size = bytes
-  let unitIndex = 0
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
 
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex++
-  }
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-  return `${size.toFixed(1)} ${units[unitIndex]}`
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
 }
 
 export function formatDate(dateString?: string): string {

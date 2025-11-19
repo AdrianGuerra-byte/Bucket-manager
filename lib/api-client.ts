@@ -1,4 +1,4 @@
-import type { FilesResponse } from "@/types/files"
+import type { FilesResponse, BucketsApiResponse, Bucket } from "@/types/files"
 
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000
@@ -59,6 +59,22 @@ export class ApiClient {
     return response.json()
   }
 
+  async listBuckets(): Promise<BucketsApiResponse> {
+    const response = await this.fetchWithAuth("/buckets?include_files=true")
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Error al listar buckets" }))
+      throw new Error(error.detail || `Error ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  async getBucket(bucketName: string): Promise<Bucket | undefined> {
+    const response = await this.listBuckets()
+    return response.buckets.find((bucket) => bucket.name === bucketName)
+  }
+
   async listFiles(bucketName: string, subfolder?: string): Promise<FilesResponse> {
     const params = new URLSearchParams()
     if (subfolder) {
@@ -92,9 +108,19 @@ export class ApiClient {
     }
   }
 
-  async deleteFile(bucketName: string, filename: string): Promise<void> {
+  async deleteFile(bucketName: string, path: string): Promise<void> {
+    const parts = path.split("/")
+    const filename = parts.pop()!
+    const subfolder = parts.join("/")
+
+    let url = `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}`
+    if (subfolder) {
+      const params = new URLSearchParams({ subfolder })
+      url += `?${params.toString()}`
+    }
+    
     const response = await this.fetchWithAuth(
-      `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}`,
+      url,
       {
         method: "DELETE",
       },
@@ -110,9 +136,18 @@ export class ApiClient {
     return `${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}/download`
   }
 
-  async downloadFile(bucketName: string, filename: string): Promise<Blob> {
-    const url = `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}/download`
-    console.log("[API] Downloading file:", { bucketName, filename, url: `${this.baseUrl}${url}` })
+  async downloadFile(bucketName: string, path: string): Promise<Blob> {
+    const parts = path.split("/")
+    const filename = parts.pop()!
+    const subfolder = parts.join("/")
+    
+    let url = `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}/download`
+    if (subfolder) {
+      const params = new URLSearchParams({ subfolder })
+      url += `?${params.toString()}`
+    }
+    
+    console.log("[API] Downloading file:", { bucketName, path, url: `${this.baseUrl}${url}` })
     
     const response = await this.fetchWithAuth(url)
 

@@ -27,7 +27,7 @@ export function FilePreview({ file, bucketName, open, onOpenChange }: FilePrevie
     const loadPreview = async () => {
       setLoading(true)
       try {
-        const blob = await apiClient.downloadFile(bucketName, file.filename)
+        const blob = await apiClient.downloadFile(bucketName, file.path || file.filename)
         const url = URL.createObjectURL(blob)
         setPreviewUrl(url)
       } catch (error) {
