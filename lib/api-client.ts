@@ -18,12 +18,6 @@ export class ApiClient {
 
   private async fetchWithAuth(url: string, options: RequestInit = {}, retries = 0): Promise<Response> {
     const token = await this.getToken()
-    console.log("[API] Making request:", {
-      url: `${this.baseUrl}${url}`,
-      method: options.method || "GET",
-      hasToken: !!token,
-      tokenPreview: token?.substring(0, 20) + "...",
-    })
 
     const response = await fetch(`${this.baseUrl}${url}`, {
       ...options,
@@ -33,13 +27,6 @@ export class ApiClient {
       },
     })
 
-    console.log("[API] Response received:", {
-      url: `${this.baseUrl}${url}`,
-      status: response.status,
-      ok: response.ok,
-    })
-
-    // Retry on network errors or 5xx errors
     if (!response.ok && response.status >= 500 && retries < MAX_RETRIES) {
       await sleep(RETRY_DELAY * Math.pow(2, retries))
       return this.fetchWithAuth(url, options, retries + 1)
@@ -147,16 +134,88 @@ export class ApiClient {
       url += `?${params.toString()}`
     }
     
-    console.log("[API] Downloading file:", { bucketName, path, url: `${this.baseUrl}${url}` })
-    
     const response = await this.fetchWithAuth(url)
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error("[API] Download failed:", { status: response.status, error: errorText })
       throw new Error("Error al descargar archivo")
     }
 
     return response.blob()
+  }
+
+  async createBucket(bucketName: string): Promise<string> {
+    const response = await this.fetchWithAuth(`/buckets/${encodeURIComponent(bucketName)}`, {
+      method: "POST",
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Error al crear bucket" }))
+      throw new Error(error.detail || `Error ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  async uploadFile(bucketName: string, file: File, subfolder?: string): Promise<string> {
+    const formData = new FormData()
+    formData.append("file", file)
+    
+    if (subfolder) {
+      formData.append("subfolder", subfolder)
+    }
+
+    const token = await this.getToken()
+    let url = `${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/upload`
+    
+    if (subfolder) {
+      const params = new URLSearchParams({ subfolder })
+      url += `?${params.toString()}`
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Error al subir archivo" }))
+      throw new Error(error.detail || `Error ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  async uploadMultipleFiles(bucketName: string, files: File[], subfolder?: string): Promise<string> {
+    if (files.length > 20) {
+      throw new Error("Máximo 20 archivos por carga")
+    }
+
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append("files", file)
+    })
+    
+    if (subfolder) {
+      formData.append("subfolder", subfolder)
+    }
+
+    const token = await this.getToken()
+    const response = await fetch(`${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/upload-multiple`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Error al subir archivos" }))
+      throw new Error(error.detail || `Error ${response.status}`)
+    }
+
+    return response.json()
   }
 }
