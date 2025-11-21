@@ -8,15 +8,17 @@ import { FolderRow } from "./folder-row"
 import { MultiSelectToolbar } from "./multi-select-toolbar"
 import { ConfirmModal } from "./confirm-modal"
 import { FilePreview } from "./file-preview"
+import { UploadDialog } from "./upload-dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { ArrowUpDown, Search, AlertCircle, Home } from "lucide-react"
+import { ArrowUpDown, Search, AlertCircle, Home, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getFileTypeCategory } from "@/utils/file-types"
 import Link from "next/link"
+
 
 interface FileListProps {
   bucketName: string
@@ -47,6 +49,7 @@ export function FileList({ bucketName, subfolder }: FileListProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
 
   // Filtros y ordenamiento
   const [searchQuery, setSearchQuery] = useState("")
@@ -69,7 +72,7 @@ export function FileList({ bucketName, subfolder }: FileListProps) {
         if (foundSubfolder) {
           currentItems = foundSubfolder
         } else {
-          // If subfolder is not found, show empty
+          // Si no se encuentra la subcarpeta, establecer items como vacío
           currentItems = []
         }
       }
@@ -107,7 +110,7 @@ export function FileList({ bucketName, subfolder }: FileListProps) {
       const matchesSearch = item.filename.toLowerCase().includes(searchQuery.toLowerCase())
       if (!matchesSearch) return false
 
-      if (item.type === "folder") return true // Always show folders if they match search
+      if (item.type === "folder") return true // Siempre mostrar carpetas si coinciden con la búsqueda
 
       if (filterType === "all") return true
       const category = getFileTypeCategory(item.mime_type, item.filename)
@@ -240,6 +243,10 @@ export function FileList({ bucketName, subfolder }: FileListProps) {
           <Button variant="outline" size="sm" onClick={() => toggleSort("filename")} className="gap-2">Nombre <ArrowUpDown className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={() => toggleSort("size")} className="gap-2">Tamaño <ArrowUpDown className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={() => toggleSort("modified")} className="gap-2">Fecha <ArrowUpDown className="h-4 w-4" /></Button>
+          <Button onClick={() => setUploadDialogOpen(true)} size="sm" className="gap-2">
+            <Upload className="h-4 w-4" />
+            Subir
+          </Button>
         </div>
       </div>
       {filteredAndSortedItems.length === 0 ? (
@@ -267,6 +274,13 @@ export function FileList({ bucketName, subfolder }: FileListProps) {
       <MultiSelectToolbar selectedCount={selectedFiles.size} onDelete={() => setDeleteModalOpen(true)} onClear={() => setSelectedFiles(new Set())} />
       <ConfirmModal open={deleteModalOpen} onOpenChange={setDeleteModalOpen} onConfirm={handleDeleteSelected} title="Eliminar archivos" description={`¿Estás seguro de que quieres eliminar ${selectedFiles.size} archivo(s)? Esta acción no se puede deshacer.`} confirmText="Eliminar" />
       <FilePreview file={previewFile} bucketName={bucketName} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <UploadDialog 
+        open={uploadDialogOpen} 
+        onOpenChange={setUploadDialogOpen} 
+        bucketName={bucketName}
+        subfolder={subfolder}
+        onSuccess={loadItems}
+      />
     </div>
   )
 }
