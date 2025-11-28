@@ -4,24 +4,42 @@ import { useState } from "react"
 import { Upload, X, FileText, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useApiClient } from "@/hooks/use-api-client"
 import { formatBytes } from "@/utils/formatters"
 import { cn } from "@/lib/utils"
 
 interface UploadDialogProps {
-  bucketName: string
-  subfolder?: string
+  ownerRef: number | string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-const MAX_FILES = 20
-const ALLOWED_TYPES = ["application/pdf", "image/jpeg"]
+const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"]
 
-export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSuccess }: UploadDialogProps) {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+// Document types catalog
+const DOCUMENT_TYPES = [
+  { code: "INE_FRONT", name: "INE (Frente)" },
+  { code: "INE_BACK", name: "INE (Reverso)" },
+  { code: "ACTA_NACIMIENTO", name: "Acta de Nacimiento" },
+  { code: "CURP", name: "CURP" },
+  { code: "COMPROBANTE_DOMICILIO", name: "Comprobante de Domicilio" },
+  { code: "CERTIFICADO", name: "Certificado de Estudios" },
+  { code: "KARDEX", name: "Kardex" },
+  { code: "FOTOGRAFIA", name: "Fotografía" },
+  { code: "OTRO", name: "Otro Documento" },
+]
+
+export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess }: UploadDialogProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [docType, setDocType] = useState<string>("")
+  const [ciclo, setCiclo] = useState<string>("")
+  const [comentario, setComentario] = useState<string>("")
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const { toast } = useToast()
@@ -29,50 +47,30 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return `${file.name}: Solo se permiten archivos PDF y JPEG`
+      return "Formato no válido. Solo aceptamos PDF o Imágenes (JPG/PNG)."
     }
-    if (file.size > 2 * 1024 * 1024) {
-      return `${file.name}: El archivo excede 2MB`
+    if (file.size > MAX_FILE_SIZE) {
+      return "El archivo pesa más de 2MB. Por favor comprímelo."
     }
     return null
   }
 
   const handleFiles = (files: FileList | null) => {
-    if (!files) return
+    if (!files || files.length === 0) return
 
-    const newFiles = Array.from(files)
-    const errors: string[] = []
-    const validFiles: File[] = []
+    const file = files[0] // Solo un archivo
+    const error = validateFile(file)
 
-    newFiles.forEach((file) => {
-      const error = validateFile(file)
-      if (error) {
-        errors.push(error)
-      } else {
-        validFiles.push(file)
-      }
-    })
-
-    if (selectedFiles.length + validFiles.length > MAX_FILES) {
+    if (error) {
       toast({
-        title: "Límite excedido",
-        description: `Máximo ${MAX_FILES} archivos por carga`,
+        title: "Archivo no válido",
+        description: error,
         variant: "destructive",
       })
       return
     }
 
-    if (errors.length > 0) {
-      toast({
-        title: "Archivos no válidos",
-        description: errors.join("\n"),
-        variant: "destructive",
-      })
-    }
-
-    if (validFiles.length > 0) {
-      setSelectedFiles([...selectedFiles, ...validFiles])
-    }
+    setSelectedFile(file)
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -92,29 +90,46 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
     handleFiles(e.dataTransfer.files)
   }
 
-  const removeFile = (index: number) => {
-    setSelectedFiles(selectedFiles.filter((_, i) => i !== index))
+  const removeFile = () => {
+    setSelectedFile(null)
+  }
+
+  const resetForm = () => {
+    setSelectedFile(null)
+    setDocType("")
+    setCiclo("")
+    setComentario("")
   }
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) return
+    if (!selectedFile || !docType) {
+      toast({
+        title: "Campos incompletos",
+        description: "Debes seleccionar un archivo y un tipo de documento",
+        variant: "destructive",
+      })
+      return
+    }
 
     setUploading(true)
     try {
-      if (selectedFiles.length === 1) {
-        await apiClient.uploadFile(bucketName, selectedFiles[0], subfolder)
-        toast({
-          title: "Archivo subido",
-          description: `${selectedFiles[0].name} se subió correctamente`,
-        })
-      } else {
-        await apiClient.uploadMultipleFiles(bucketName, selectedFiles, subfolder)
-        toast({
-          title: "Archivos subidos",
-          description: `${selectedFiles.length} archivos se subieron correctamente`,
-        })
-      }
-      setSelectedFiles([])
+      await apiClient.uploadDocument({
+        file: selectedFile,
+        owner_ref: ownerRef,
+        doc_type: docType,
+        metadata: {
+          ciclo: ciclo || undefined,
+          origen: "portal_web",
+          comentario: comentario || undefined,
+        },
+      })
+      
+      toast({
+        title: "Documento subido",
+        description: `${selectedFile.name} se subió correctamente`,
+      })
+      
+      resetForm()
       onSuccess()
       onOpenChange(false)
     } catch (error) {
@@ -130,7 +145,7 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
 
   const getFileIcon = (type: string) => {
     if (type === "application/pdf") return FileText
-    if (type === "image/jpeg") return ImageIcon
+    if (type.startsWith("image/")) return ImageIcon
     return FileText
   }
 
@@ -138,13 +153,54 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Subir archivos</DialogTitle>
+          <DialogTitle>Subir documento</DialogTitle>
           <DialogDescription>
-            Arrastra archivos PDF o JPEG aquí, o haz clic para seleccionar. Máximo {MAX_FILES} archivos.
+            Arrastra un archivo PDF o imagen aquí, o haz clic para seleccionar. Máximo 2MB.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Tipo de Documento */}
+          <div className="space-y-2">
+            <Label htmlFor="doc-type">Tipo de Documento *</Label>
+            <Select value={docType} onValueChange={setDocType} disabled={uploading}>
+              <SelectTrigger id="doc-type">
+                <SelectValue placeholder="Selecciona el tipo de documento" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_TYPES.map((type) => (
+                  <SelectItem key={type.code} value={type.code}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Ciclo Escolar */}
+          <div className="space-y-2">
+            <Label htmlFor="ciclo">Ciclo Escolar</Label>
+            <Input
+              id="ciclo"
+              placeholder="Ej: 2025-1"
+              value={ciclo}
+              onChange={(e) => setCiclo(e.target.value)}
+              disabled={uploading}
+            />
+          </div>
+
+          {/* Comentario */}
+          <div className="space-y-2">
+            <Label htmlFor="comentario">Comentario (Opcional)</Label>
+            <Input
+              id="comentario"
+              placeholder="Agrega un comentario sobre el documento"
+              value={comentario}
+              onChange={(e) => setComentario(e.target.value)}
+              disabled={uploading}
+            />
+          </div>
+
           {/* Drop zone */}
           <div
             className={cn(
@@ -160,16 +216,15 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
             <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                Arrastra archivos aquí o haz clic para seleccionar
+                Arrastra un archivo aquí o haz clic para seleccionar
               </p>
               <p className="text-xs text-muted-foreground">
-                Solo PDF y JPEG, máximo 2MB por archivo
+                Solo PDF, JPG o PNG, máximo 2MB
               </p>
             </div>
             <input
               type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
               onChange={(e) => handleFiles(e.target.files)}
               disabled={uploading}
               className="hidden"
@@ -183,44 +238,35 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
                 disabled={uploading}
                 onClick={() => document.getElementById("file-upload")?.click()}
               >
-                Seleccionar archivos
+                Seleccionar archivo
               </Button>
             </label>
           </div>
 
-          {/* Lista de archivos */}
-          {selectedFiles.length > 0 && (
+          {/* Archivo seleccionado */}
+          {selectedFile && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">
-                Archivos seleccionados ({selectedFiles.length}/{MAX_FILES})
-              </p>
-              <div className="max-h-[200px] overflow-y-auto space-y-2">
-                {selectedFiles.map((file, index) => {
-                  const Icon = getFileIcon(file.type)
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 group"
-                    >
-                      <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatBytes(file.size)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeFile(index)}
-                        disabled={uploading}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )
-                })}
+              <p className="text-sm font-medium">Archivo seleccionado</p>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 group">
+                {(() => {
+                  const Icon = getFileIcon(selectedFile.type)
+                  return <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                })()}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatBytes(selectedFile.size)}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={removeFile}
+                  disabled={uploading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}
@@ -230,7 +276,7 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
             <Button
               variant="outline"
               onClick={() => {
-                setSelectedFiles([])
+                resetForm()
                 onOpenChange(false)
               }}
               disabled={uploading}
@@ -239,9 +285,9 @@ export function UploadDialog({ bucketName, subfolder, open, onOpenChange, onSucc
             </Button>
             <Button
               onClick={handleUpload}
-              disabled={selectedFiles.length === 0 || uploading}
+              disabled={!selectedFile || !docType || uploading}
             >
-              {uploading ? "Subiendo..." : `Subir ${selectedFiles.length > 0 ? `(${selectedFiles.length})` : ""}`}
+              {uploading ? "Subiendo..." : "Subir Documento"}
             </Button>
           </div>
         </div>

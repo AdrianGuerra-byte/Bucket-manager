@@ -172,12 +172,3 @@ export async function getOrRefreshToken(): Promise<string> {
 
   return token
 }
-
-
-export async function getApi(): Promise<ApiClient> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiUrl) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL is not defined");
-  }
-  return new ApiClient(apiUrl, getOrRefreshToken);
-}
