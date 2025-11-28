@@ -1,4 +1,4 @@
-import type { FilesResponse, BucketsApiResponse, Bucket } from "@/types/files"
+import type { Document, DocumentUploadRequest, DocumentListResponse } from "@/types/files"
 
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000
@@ -35,187 +35,146 @@ export class ApiClient {
     return response
   }
 
-  async getMyPermissions(): Promise<any> {
-    const response = await this.fetchWithAuth("/buckets/my-permissions")
+  // ========================================
+  // DOCUMENT API METHODS
+  // ========================================
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al obtener permisos" }))
-      throw new Error(error.detail || `Error ${response.status}`)
-    }
-
-    return response.json()
-  }
-
-  async listBuckets(): Promise<BucketsApiResponse> {
-    const response = await this.fetchWithAuth("/buckets?include_files=true")
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al listar buckets" }))
-      throw new Error(error.detail || `Error ${response.status}`)
-    }
-
-    return response.json()
-  }
-
-  async getBucket(bucketName: string): Promise<Bucket | undefined> {
-    const response = await this.listBuckets()
-    return response.buckets.find((bucket) => bucket.name === bucketName)
-  }
-
-  async listFiles(bucketName: string, subfolder?: string): Promise<FilesResponse> {
-    const params = new URLSearchParams()
-    if (subfolder) {
-      params.append("subfolder", subfolder)
-    }
-
-    const url = `/buckets/${encodeURIComponent(bucketName)}/files${params.toString() ? `?${params.toString()}` : ""}`
-
+  /**
+   * List all documents for a specific owner (student)
+   * GET /documents/bucket/{owner_ref}
+   */
+  async listDocuments(ownerRef: number | string): Promise<DocumentListResponse> {
+    const url = `/documents/bucket/${ownerRef}`
+    console.log(`[ApiClient] Solicitando: ${this.baseUrl}${url}`)
+    
     const response = await this.fetchWithAuth(url)
+    console.log(`[ApiClient] Respuesta recibida: status ${response.status}`)
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al listar archivos" }))
+      if (response.status === 404) {
+        console.log(`[ApiClient] 404 - No hay documentos para owner_ref: ${ownerRef}`)
+        // No hay documentos para este alumno, retornar array vacío
+        return []
+      }
+      if (response.status === 403) {
+        throw new Error("No tienes permisos para ver estos documentos")
+      }
+      const error = await response.json().catch(() => ({ detail: "Error al listar documentos" }))
       throw new Error(error.detail || `Error ${response.status}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    console.log(`[ApiClient] Datos parseados:`, data)
+    return data
   }
 
-  async deleteFiles(bucketName: string, filenames: string[]): Promise<void> {
-    const response = await this.fetchWithAuth(`/buckets/${encodeURIComponent(bucketName)}/files`, {
-      method: "DELETE",
+  /**
+   * Upload a document with metadata
+   * POST /documents/upload
+   */
+  async uploadDocument(request: DocumentUploadRequest): Promise<any> {
+    const formData = new FormData()
+    
+    // Attach file
+    formData.append("file", request.file)
+    
+    // Attach required fields
+    formData.append("owner_ref", request.owner_ref.toString())
+    formData.append("doc_type", request.doc_type)
+    
+    // Attach metadata (must be JSON stringified)
+    if (request.metadata) {
+      formData.append("metadata", JSON.stringify(request.metadata))
+    }
+
+    const token = await this.getToken()
+    const response = await fetch(`${this.baseUrl}/documents/upload`, {
+      method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        // Don't set Content-Type, browser will set it with boundary for multipart/form-data
       },
-      body: JSON.stringify(filenames),
+      body: formData,
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al eliminar archivos" }))
+      // Handle specific error codes
+      if (response.status === 413) {
+        throw new Error("El archivo pesa más de 2MB. Por favor comprímelo.")
+      }
+      if (response.status === 415) {
+        throw new Error("Formato no válido. Solo aceptamos PDF o Imágenes (JPG/PNG).")
+      }
+      if (response.status === 400) {
+        const error = await response.json().catch(() => ({ detail: "Error de validación" }))
+        throw new Error(error.detail || "Error de validación. Verifica los datos enviados.")
+      }
+      if (response.status === 403) {
+        throw new Error("Tu sesión expiró o no tienes permiso.")
+      }
+      
+      const error = await response.json().catch(() => ({ detail: "Error al subir documento" }))
       throw new Error(error.detail || `Error ${response.status}`)
     }
+
+    return response.json()
   }
 
-  async deleteFile(bucketName: string, path: string): Promise<void> {
-    const parts = path.split("/")
-    const filename = parts.pop()!
-    const subfolder = parts.join("/")
-
-    let url = `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}`
-    if (subfolder) {
-      const params = new URLSearchParams({ subfolder })
-      url += `?${params.toString()}`
-    }
-    
-    const response = await this.fetchWithAuth(
-      url,
-      {
-        method: "DELETE",
-      },
-    )
+  /**
+   * Download a document by ID
+   * GET /documents/{document_id}/download
+   */
+  async downloadDocument(documentId: string, fileName: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/documents/${documentId}/download`)
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al eliminar archivo" }))
-      throw new Error(error.detail || `Error ${response.status}`)
+      if (response.status === 403) {
+        throw new Error("Tu sesión expiró o no tienes permiso para ver este archivo.")
+      }
+      throw new Error("Error al descargar documento")
     }
+
+    // Convert to blob and trigger download
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
   }
 
-  getDownloadUrl(bucketName: string, filename: string): string {
-    return `${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}/download`
-  }
-
-  async downloadFile(bucketName: string, path: string): Promise<Blob> {
-    const parts = path.split("/")
-    const filename = parts.pop()!
-    const subfolder = parts.join("/")
-    
-    let url = `/buckets/${encodeURIComponent(bucketName)}/files/${encodeURIComponent(filename)}/download`
-    if (subfolder) {
-      const params = new URLSearchParams({ subfolder })
-      url += `?${params.toString()}`
-    }
-    
-    const response = await this.fetchWithAuth(url)
+  /**
+   * Get document blob for preview
+   * GET /documents/{document_id}/download
+   */
+  async getDocumentBlob(documentId: string): Promise<Blob> {
+    const response = await this.fetchWithAuth(`/documents/${documentId}/download`)
 
     if (!response.ok) {
-      throw new Error("Error al descargar archivo")
+      if (response.status === 403) {
+        throw new Error("Tu sesión expiró o no tienes permiso para ver este archivo.")
+      }
+      throw new Error("Error al obtener documento")
     }
 
     return response.blob()
   }
 
-  async createBucket(bucketName: string): Promise<string> {
-    const response = await this.fetchWithAuth(`/buckets/${encodeURIComponent(bucketName)}`, {
-      method: "POST",
+  /**
+   * Delete a document
+   * DELETE /documents/{document_id}
+   */
+  async deleteDocument(documentId: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/documents/${documentId}`, {
+      method: "DELETE",
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al crear bucket" }))
+      const error = await response.json().catch(() => ({ detail: "Error al eliminar documento" }))
       throw new Error(error.detail || `Error ${response.status}`)
     }
-
-    return response.json()
-  }
-
-  async uploadFile(bucketName: string, file: File, subfolder?: string): Promise<string> {
-    const formData = new FormData()
-    formData.append("file", file)
-    
-    if (subfolder) {
-      formData.append("subfolder", subfolder)
-    }
-
-    const token = await this.getToken()
-    let url = `${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/upload`
-    
-    if (subfolder) {
-      const params = new URLSearchParams({ subfolder })
-      url += `?${params.toString()}`
-    }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al subir archivo" }))
-      throw new Error(error.detail || `Error ${response.status}`)
-    }
-
-    return response.json()
-  }
-
-  async uploadMultipleFiles(bucketName: string, files: File[], subfolder?: string): Promise<string> {
-    if (files.length > 20) {
-      throw new Error("Máximo 20 archivos por carga")
-    }
-
-    const formData = new FormData()
-    files.forEach((file) => {
-      formData.append("files", file)
-    })
-    
-    if (subfolder) {
-      formData.append("subfolder", subfolder)
-    }
-
-    const token = await this.getToken()
-    const response = await fetch(`${this.baseUrl}/buckets/${encodeURIComponent(bucketName)}/upload-multiple`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Error al subir archivos" }))
-      throw new Error(error.detail || `Error ${response.status}`)
-    }
-
-    return response.json()
   }
 }
