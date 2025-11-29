@@ -22,17 +22,14 @@ interface UploadDialogProps {
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"]
 
-// Document types catalog
+// Document types catalog - DEBE coincidir exactamente con document_types en BD
 const DOCUMENT_TYPES = [
-  { code: "INE_FRONT", name: "INE (Frente)" },
-  { code: "INE_BACK", name: "INE (Reverso)" },
-  { code: "ACTA_NACIMIENTO", name: "Acta de Nacimiento" },
-  { code: "CURP", name: "CURP" },
-  { code: "COMPROBANTE_DOMICILIO", name: "Comprobante de Domicilio" },
-  { code: "CERTIFICADO", name: "Certificado de Estudios" },
-  { code: "KARDEX", name: "Kardex" },
-  { code: "FOTOGRAFIA", name: "Fotografía" },
-  { code: "OTRO", name: "Otro Documento" },
+  { code: "INE_FRONT", name: "INE (Frente)", description: "Identificación oficial frontal" },
+  { code: "INE_BACK", name: "INE (Reverso)", description: "Identificación oficial reverso" },
+  { code: "ACTA_NAC", name: "Acta de Nacimiento", description: "Copia certificada" },
+  { code: "CURP", name: "CURP", description: "Formato actualizado" },
+  { code: "KARDEX", name: "Kárdex / Certificado", description: "Documento académico previo" },
+  { code: "COMP_DOM", name: "Comprobante Domicilio", description: "Vigencia menor a 3 meses" },
 ]
 
 export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess }: UploadDialogProps) {
@@ -170,7 +167,10 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess }: Upload
               <SelectContent>
                 {DOCUMENT_TYPES.map((type) => (
                   <SelectItem key={type.code} value={type.code}>
-                    {type.name}
+                    <div className="flex flex-col">
+                      <span className="font-medium">{type.name}</span>
+                      <span className="text-xs text-muted-foreground">{type.description}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
