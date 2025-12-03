@@ -5,12 +5,52 @@ export interface HistorialCambio {
   version_asociada: number
 }
 
+// Nueva estructura de metadata para portal_inscripciones
+export interface ValidacionHistorial {
+  timestamp: string
+  revisor: string
+  estado: "aceptado" | "rechazado" | "pendiente"
+  comentarios: string
+  detalles_rechazo?: {
+    motivo: string
+    [key: string]: any
+  }
+}
+
+export interface Validacion {
+  estado_actual: "aceptado" | "rechazado" | "pendiente"
+  ultima_actualizacion: string
+  historial: ValidacionHistorial[]
+}
+
+export interface Propietario {
+  id: number
+  tipo_entidad: "prospecto" | "alumno"
+  folio: string
+  nombre_completo: string
+  programa_academico?: string
+  grado_academico?: string
+  email?: string
+  telefono?: string
+}
+
+export interface MetadataInscripciones {
+  sistema_origen: string
+  propietario: Propietario
+  validacion: Validacion
+}
+
 export interface DocumentMetadata {
+  // Legacy fields
   status?: "VALIDADO" | "PENDIENTE" | "RECHAZADO"
   ciclo?: string
   origen?: string
   comentario?: string
   historial_cambios?: HistorialCambio[]
+  // Nueva estructura de inscripciones
+  sistema_origen?: string
+  propietario?: Propietario
+  validacion?: Validacion
   [key: string]: any
 }
 
