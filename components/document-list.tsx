@@ -50,6 +50,9 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
       console.log(`[DocumentList] Documentos recibidos:`, docs)
       // Asegurar que siempre sea un array
       const docsArray = Array.isArray(docs) ? docs : []
+      if (docsArray.length > 0) {
+        console.log('[DocumentList] ESTRUCTURA DEL PRIMER DOCUMENTO:', JSON.stringify(docsArray[0], null, 2))
+      }
       setDocuments(docsArray)
       
       if (docsArray.length === 0) {
@@ -87,6 +90,12 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
         doc.file_name.toLowerCase().includes(searchQuery.toLowerCase())
       
       if (!matchesSearch) return false
+
+      // Filtrar por tipo de documento si docTypes está definido
+      if (docTypes && docTypes.length > 0) {
+        const matchesDocType = docTypes.includes(doc.document_type_code)
+        if (!matchesDocType) return false
+      }
 
       if (filterStatus === "all") return true
       return doc.metadata?.status === filterStatus
@@ -129,7 +138,14 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
 
   const handleDownload = async (doc: Document) => {
     try {
-      await apiClient.downloadDocument(doc.document_id, doc.file_name)
+      // El backend puede devolver 'id' en lugar de 'document_id'
+      const documentId = (doc as any).id || doc.document_id
+      console.log('[DocumentList] handleDownload - doc completo:', JSON.stringify(doc, null, 2))
+      console.log('[DocumentList] handleDownload - documentId extraído:', documentId)
+      if (!documentId) {
+        throw new Error("El documento no tiene un ID válido")
+      }
+      await apiClient.downloadDocument(documentId, doc.file_name)
       toast({
         title: "Descarga iniciada",
         description: `Descargando ${doc.file_name}`,
@@ -145,7 +161,13 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
 
   const handlePreview = async (doc: Document) => {
     try {
-      const blob = await apiClient.getDocumentBlob(doc.document_id)
+      const documentId = (doc as any).id || doc.document_id
+      console.log('[DocumentList] handlePreview - doc completo:', JSON.stringify(doc, null, 2))
+      console.log('[DocumentList] handlePreview - documentId extraído:', documentId)
+      if (!documentId) {
+        throw new Error("El documento no tiene un ID válido")
+      }
+      const blob = await apiClient.getDocumentBlob(documentId)
       const url = window.URL.createObjectURL(blob)
       window.open(url, "_blank")
       setTimeout(() => window.URL.revokeObjectURL(url), 100)
@@ -282,9 +304,9 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAndSortedDocuments.map((doc) => (
+          {filteredAndSortedDocuments.map((doc, index) => (
             <DocumentCard
-              key={doc.document_id}
+              key={(doc as any).id || doc.document_id || `doc-${index}`}
               document={doc}
               onPreview={handlePreview}
               onDownload={handleDownload}
