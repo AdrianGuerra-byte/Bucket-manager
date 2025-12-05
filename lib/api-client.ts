@@ -74,7 +74,12 @@ export class ApiClient {
     console.log(`[ApiClient] Datos parseados:`, data)
     // El backend retorna { owner_ref, total_documents, documents: [...] }
     // Retornamos solo el array de documents para compatibilidad
-    return data.documents || []
+    if (Array.isArray(data)) {
+      // Si ya es un array, retornarlo directamente
+      return data
+    }
+    // Si es un objeto con documents, retornar el array
+    return Array.isArray(data.documents) ? data.documents : []
   }
 
   /**

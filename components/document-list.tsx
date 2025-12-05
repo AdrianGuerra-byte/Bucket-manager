@@ -48,9 +48,11 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
     try {
       const docs = await apiClient.listDocuments(ownerRef, docTypes)
       console.log(`[DocumentList] Documentos recibidos:`, docs)
-      setDocuments(docs)
+      // Asegurar que siempre sea un array
+      const docsArray = Array.isArray(docs) ? docs : []
+      setDocuments(docsArray)
       
-      if (docs.length === 0) {
+      if (docsArray.length === 0) {
         console.log(`[DocumentList] No hay documentos para owner_ref: ${ownerRef}`)
         toast({
           title: "Sin documentos",
@@ -58,7 +60,7 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
           variant: "default",
         })
       } else {
-        console.log(`[DocumentList] Se encontraron ${docs.length} documento(s)`)
+        console.log(`[DocumentList] Se encontraron ${docsArray.length} documento(s)`)
       }
     } catch (error) {
       console.error(`[DocumentList] Error al cargar documentos:`, error)
