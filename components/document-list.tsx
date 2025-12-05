@@ -18,9 +18,10 @@ import { AlertCircle } from "lucide-react"
 
 interface DocumentListProps {
   ownerRef: number | string
+  docTypes?: string[]
 }
 
-export function DocumentList({ ownerRef }: DocumentListProps) {
+export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
   const apiClient = useApiClient()
   const { toast } = useToast()
 
@@ -41,11 +42,11 @@ export function DocumentList({ ownerRef }: DocumentListProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   const loadDocuments = useCallback(async () => {
-    console.log(`[DocumentList] Cargando documentos para owner_ref: ${ownerRef}`)
+    console.log(`[DocumentList] Cargando documentos para owner_ref: ${ownerRef}`, docTypes ? `con filtros: ${docTypes.join(', ')}` : 'sin filtros')
     setLoading(true)
     setError(null)
     try {
-      const docs = await apiClient.listDocuments(ownerRef)
+      const docs = await apiClient.listDocuments(ownerRef, docTypes)
       console.log(`[DocumentList] Documentos recibidos:`, docs)
       setDocuments(docs)
       
@@ -71,7 +72,7 @@ export function DocumentList({ ownerRef }: DocumentListProps) {
     } finally {
       setLoading(false)
     }
-  }, [apiClient, ownerRef, toast])
+  }, [apiClient, ownerRef, docTypes, toast])
 
   useEffect(() => {
     loadDocuments()

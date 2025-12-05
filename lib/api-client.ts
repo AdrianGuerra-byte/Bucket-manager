@@ -41,10 +41,17 @@ export class ApiClient {
 
   /**
    * List all documents for a specific owner (student)
-   * GET /documents/bucket/{owner_ref}
+   * GET /documents/filter/{owner_ref}?doc_types=TYPE1&doc_types=TYPE2...
    */
-  async listDocuments(ownerRef: number | string): Promise<DocumentListResponse> {
-    const url = `/documents/bucket/${ownerRef}`
+  async listDocuments(ownerRef: number | string, docTypes?: string[]): Promise<DocumentListResponse> {
+    // Construir query params si hay filtros
+    const params = new URLSearchParams()
+    if (docTypes && docTypes.length > 0) {
+      docTypes.forEach(type => params.append("doc_types", type))
+    }
+    
+    const queryString = params.toString()
+    const url = `/documents/filter/${ownerRef}${queryString ? `?${queryString}` : ''}`
     console.log(`[ApiClient] Solicitando: ${this.baseUrl}${url}`)
     
     const response = await this.fetchWithAuth(url)
@@ -53,8 +60,8 @@ export class ApiClient {
     if (!response.ok) {
       if (response.status === 404) {
         console.log(`[ApiClient] 404 - No hay documentos para owner_ref: ${ownerRef}`)
-        // No hay documentos para este alumno, retornar array vacío
-        return []
+        // No hay documentos para este alumno, retornar respuesta vacía
+        return { owner_ref: Number(ownerRef), total_documents: 0, documents: [] }
       }
       if (response.status === 403) {
         throw new Error("No tienes permisos para ver estos documentos")
@@ -65,7 +72,9 @@ export class ApiClient {
 
     const data = await response.json()
     console.log(`[ApiClient] Datos parseados:`, data)
-    return data
+    // El backend retorna { owner_ref, total_documents, documents: [...] }
+    // Retornamos solo el array de documents para compatibilidad
+    return data.documents || []
   }
 
   /**
