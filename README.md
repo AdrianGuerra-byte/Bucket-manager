@@ -275,7 +275,6 @@ Frontend muestra solo documentos filtrados
 - Filtrado por estado de validación (VALIDADO/PENDIENTE/RECHAZADO)
 - Ordenamiento por nombre, tamaño o fecha
 - Vista en grid responsive
-- Skeleton loaders durante carga
 - Mensajes informativos cuando no hay documentos
 
 **Optimización:**
@@ -329,7 +328,6 @@ historial: [
 - Validación de formato (PDF, JPG, PNG)
 - Validación de tamaño
 - Campo de comentarios para metadata
-- Feedback visual de progreso
 
 **Validaciones:**
 - Tipos permitidos: application/pdf, image/jpeg, image/png
@@ -406,7 +404,6 @@ toast({
 **1. Filtrado del lado del servidor**
 - Query params enviados al backend
 - Filtrado en SQL (no en memoria del cliente)
-- Escalable para miles de documentos
 
 **2. Lazy loading de componentes**
 ```typescript
@@ -424,21 +421,17 @@ const filteredDocuments = useMemo(() => {
 - Evita peticiones excesivas durante escritura
 - Mejora UX y reduce carga del servidor
 
-**5. Skeleton UI**
-- Feedback visual durante carga
-- Mejora percepción de velocidad
-
 ### Límites y Escalabilidad
 
 **Estado actual:**
-- Carga completa de documentos por alumno
-- Sin paginación (asume < 100 docs por alumno)
+- Carga completa de documentos por alumno/usuario
+- Sin paginación (se asume < 100 docs por alumno/usuario)
 - Filtrado de búsqueda local en memoria
 
 **Recomendaciones futuras:**
 - Implementar paginación para > 100 documentos
 - Virtualización de lista para > 500 elementos
-- Caché de resultados con SWR o React Query
+- Caché de resultados con SWR, Redis o React Query
 
 ## Seguridad
 
@@ -590,56 +583,3 @@ Solución: Ya resuelto con validación `Array.isArray()`
 GET /documents/undefined/download
 ```
 Solución: Ya resuelto con fallback `doc.id || doc.document_id`
-
-## Estructura del Proyecto
-
-```
-├── app/
-│   ├── api/auth/token/        # Proxy server-side para autenticación
-│   ├── buckets/[bucket]/      # Vista principal de bucket
-│   └── layout.tsx             # Layout raíz
-├── components/
-│   ├── breadcrumbs.tsx        # Navegación por carpetas
-│   ├── confirm-modal.tsx      # Modal de confirmación
-│   ├── file-list.tsx          # Lista principal de archivos
-│   ├── file-preview.tsx       # Vista previa de archivos
-│   ├── file-row.tsx           # Componente de fila de archivo
-│   └── multi-select-toolbar.tsx # Barra de acciones múltiples
-├── hooks/
-│   └── use-api-client.ts      # Hook para cliente API
-├── lib/
-│   ├── api-client.ts          # Cliente centralizado para API
-│   └── auth.ts                # Lógica de autenticación server-side
-├── types/
-│   └── files.ts               # Interfaces TypeScript
-└── utils/
-    ├── file-types.ts          # Utilidades para tipos de archivo
-    └── formatters.ts          # Formateadores (tamaño, fecha)
-```
-
-## Uso
-
-1. La aplicación se conecta automáticamente al backend configurado en `NEXT_PUBLIC_API_BASE_URL`
-2. La autenticación se maneja automáticamente usando el proxy server-side
-3. Navega a `/buckets/{nombre-del-bucket}` para ver los archivos
-4. Usa los filtros y búsqueda para encontrar archivos específicos
-5. Selecciona múltiples archivos con click + shift/ctrl para acciones masivas
-6. Haz click en un archivo para vista previa (imágenes y PDFs)
-
-## Endpoints del Backend
-
-La aplicación espera los siguientes endpoints en el backend FastAPI:
-
-- `POST /token` - Obtener token de acceso
-- `GET /buckets/{bucket_name}/files` - Listar archivos (soporta query param `subfolder`)
-- `DELETE /buckets/{bucket_name}/files` - Eliminar múltiples archivos (array de nombres)
-- `DELETE /buckets/{bucket_name}/files/{filename}` - Eliminar un archivo
-- `GET /buckets/{bucket_name}/files/{filename}/download` - Descargar archivo
-
-## Tecnologías
-
-- Next.js 16 (App Router)
-- TypeScript
-- Tailwind CSS v4
-- shadcn/ui
-- React 19
