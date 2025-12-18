@@ -4,7 +4,7 @@ import { Document } from "@/types/files"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, Eye, Trash2, FileText, Image as ImageIcon, CheckCircle2, Clock, XCircle, History, User, Building2, Mail, Phone, GraduationCap, BookOpen } from "lucide-react"
+import { Download, Eye, Trash2, FileText, Image as ImageIcon, CheckCircle2, Clock, XCircle, History, User, Building2, Mail, Phone, GraduationCap, BookOpen, RefreshCw } from "lucide-react"
 import { formatBytes } from "@/utils/formatters"
 import { formatDate } from "@/utils/formatters"
 
@@ -14,14 +14,15 @@ interface DocumentCardProps {
   onDownload: (doc: Document) => void
   onDelete: (doc: Document) => void
   onViewHistory: (doc: Document) => void
+  onUpdate: (doc: Document) => void
 }
 
-export function DocumentCard({ document, onPreview, onDownload, onDelete, onViewHistory }: DocumentCardProps) {
+export function DocumentCard({ document, onPreview, onDownload, onDelete, onViewHistory, onUpdate }: DocumentCardProps) {
   const getStatusBadge = (status?: string) => {
     if (!status) return null
-    
+
     const normalizedStatus = status.toUpperCase()
-    
+
     switch (normalizedStatus) {
       case "VALIDADO":
       case "ACEPTADO":
@@ -73,7 +74,123 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
 
     const sections = []
 
-    // Propietario (prospecto/alumno)
+    // Nueva estructura v2.0 (sistema, entidades, archivo)
+    if (metadata.sistema) {
+      sections.push(
+        <div key="sistema" className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+          <div className="flex items-center gap-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
+            <Building2 className="h-3 w-3" />
+            {metadata.sistema}
+          </div>
+        </div>
+      )
+    }
+
+    // Entidades (prospecto/alumno)
+    if (metadata.entidades && Array.isArray(metadata.entidades)) {
+      metadata.entidades.forEach((entidad: any, idx: number) => {
+        sections.push(
+          <div key={`entidad-${idx}`} className="space-y-2 p-3 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg border border-purple-200 dark:border-purple-900">
+            <div className="flex items-center gap-2 text-xs font-semibold text-purple-900 dark:text-purple-100">
+              <User className="h-3 w-3" />
+              {entidad.tipo === "prospecto" ? "PROSPECTO" : "ALUMNO"}
+            </div>
+            {entidad.datos && (
+              <div className="grid gap-1.5 pl-5">
+                {entidad.datos.folio && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-medium text-muted-foreground">Folio:</span>
+                    <span className="text-foreground font-mono font-semibold">{entidad.datos.folio}</span>
+                  </div>
+                )}
+                {entidad.datos.name && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-medium text-muted-foreground">Nombre:</span>
+                    <span className="text-foreground font-semibold">{entidad.datos.name}</span>
+                  </div>
+                )}
+                {entidad.datos.gradoAcademico && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <GraduationCap className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground">{entidad.datos.gradoAcademico}</span>
+                  </div>
+                )}
+                {entidad.datos.programaAcademico && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <BookOpen className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground">{entidad.datos.programaAcademico}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })
+    }
+
+    // Información del archivo
+    if (metadata.archivo) {
+      const archivoSections = []
+
+      if (metadata.archivo.estado_actual) {
+        archivoSections.push(
+          <div key="estado" className="flex items-center gap-2 text-xs">
+            <span className="font-medium text-muted-foreground">Estado:</span>
+            {getStatusBadge(metadata.archivo.estado_actual)}
+          </div>
+        )
+      }
+
+      if (metadata.archivo.historial && metadata.archivo.historial.length > 0) {
+        const ultimoEvento = metadata.archivo.historial[metadata.archivo.historial.length - 1]
+        archivoSections.push(
+          <div key="ultimo-evento" className="text-xs p-2 bg-white/50 dark:bg-black/20 rounded border border-green-200 dark:border-green-800">
+            <div className="font-medium text-muted-foreground mb-1">Última acción:</div>
+            <div className="space-y-0.5 pl-2">
+              {ultimoEvento.accion && (
+                <div className="flex gap-1.5">
+                  <span className="text-muted-foreground">•</span>
+                  <span className="font-semibold">{ultimoEvento.accion}</span>
+                </div>
+              )}
+              {ultimoEvento.fecha && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>{formatDate(ultimoEvento.fecha)}</span>
+                </div>
+              )}
+              {ultimoEvento.usuario && (
+                <div className="flex gap-1.5 text-xs">
+                  <span className="text-muted-foreground">por</span>
+                  <span className="font-medium">{ultimoEvento.usuario}</span>
+                </div>
+              )}
+            </div>
+            {metadata.archivo.historial.length > 1 && (
+              <div className="text-xs text-muted-foreground text-center pt-2 mt-2 border-t">
+                + {metadata.archivo.historial.length - 1} evento(s) anterior(es)
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      if (archivoSections.length > 0) {
+        sections.push(
+          <div key="archivo" className="space-y-2 p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-900">
+            <div className="flex items-center gap-2 text-xs font-semibold text-green-900 dark:text-green-100">
+              <FileText className="h-3 w-3" />
+              ARCHIVO
+            </div>
+            <div className="space-y-2">
+              {archivoSections}
+            </div>
+          </div>
+        )
+      }
+    }
+
+    // Estructura antigua: Propietario (prospecto/alumno)
     if (metadata.propietario) {
       const prop = metadata.propietario
       sections.push(
@@ -127,13 +244,13 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
     // Historial de validación - SOLO LA ENTRADA MÁS RECIENTE
     if (metadata.validacion?.historial && metadata.validacion.historial.length > 0) {
       const latestRevision = metadata.validacion.historial[metadata.validacion.historial.length - 1]
-      
+
       sections.push(
         <div key="validacion" className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
           <div className="text-xs font-semibold text-foreground">
             Última Revisión
           </div>
-          
+
           <div className="bg-background/60 rounded p-2 space-y-1 border border-border/50">
             <div className="flex items-center gap-2 text-xs">
               {getStatusBadge(latestRevision.estado)}
@@ -159,7 +276,7 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
               </div>
             )}
           </div>
-          
+
           {metadata.validacion.historial.length > 1 && (
             <div className="text-xs text-muted-foreground text-center pt-1">
               + {metadata.validacion.historial.length - 1} revisión(es) anterior(es)
@@ -177,7 +294,7 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
     const metadata = document.metadata
     if (!metadata) return null
 
-    const excludeKeys = ['historial_cambios', 'status', 'sistema', 'entidades', 'archivos']
+    const excludeKeys = ['historial_cambios', 'status', 'sistema', 'entidades', 'archivo', 'archivos', 'sistema_origen', 'propietario', 'validacion']
     const simpleEntries = Object.entries(metadata).filter(([key]) => !excludeKeys.includes(key))
 
     if (simpleEntries.length === 0) return null
@@ -190,7 +307,7 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
               {key.replace(/_/g, ' ')}:
             </span>
             <span className="text-foreground flex-1 break-words">
-              {typeof value === 'object' 
+              {typeof value === 'object'
                 ? <pre className="text-xs bg-muted/30 p-2 rounded overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
                 : String(value)}
             </span>
@@ -202,13 +319,18 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
 
   // Determinar si tiene metadata avanzada
   const hasAdvancedMetadata = document.metadata && (
-    document.metadata.sistema_origen || 
-    document.metadata.propietario || 
+    document.metadata.sistema ||
+    document.metadata.entidades ||
+    document.metadata.archivo ||
+    document.metadata.sistema_origen ||
+    document.metadata.propietario ||
     document.metadata.validacion
   )
 
   // Determinar el estado principal del documento
-  const mainStatus = document.metadata?.validacion?.estado_actual || document.metadata?.status
+  const mainStatus = document.metadata?.archivo?.estado_actual ||
+                      document.metadata?.validacion?.estado_actual ||
+                      document.metadata?.status
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -224,7 +346,7 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
           {getStatusBadge(mainStatus)}
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-3">
         {/* Información básica */}
         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
@@ -285,7 +407,7 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
           </div>
         )}
       </CardContent>
-      
+
       <CardFooter className="flex gap-2 flex-wrap">
         <Button
           variant="outline"
@@ -304,6 +426,16 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
         >
           <Download className="h-4 w-4 mr-2" />
           Descargar
+        </Button>
+        <Button
+          variant="default"
+          size="sm"
+          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          onClick={() => onUpdate(document)}
+          title="Actualizar documento con nueva versión"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
         </Button>
         <Button
           variant="outline"

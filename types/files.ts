@@ -5,53 +5,63 @@ export interface HistorialCambio {
   version_asociada: number
 }
 
-// Nueva estructura de metadata para portal_inscripciones
-export interface ValidacionHistorial {
+// ===================================================
+// NUEVA ESTRUCTURA GENÉRICA v3.0 - ÚNICA OFICIAL
+// ===================================================
+
+export interface DatosGenerales {
+  id_interno: number
+  folio: string
+  nombre_completo: string
+  programa_academico: string
+  grado_academico: string
+}
+
+export interface HistorialValidacion {
   timestamp: string
   revisor: string
-  estado: "aceptado" | "rechazado" | "pendiente"
-  comentarios: string
-  detalles_rechazo?: {
-    motivo: string
-    [key: string]: any
-  }
+  estado: "VALIDADO" | "RECHAZADO" | "PENDIENTE" | "EN_REVISION"
+  comentarios?: string
 }
 
 export interface Validacion {
-  estado_actual: "aceptado" | "rechazado" | "pendiente"
-  ultima_actualizacion: string
-  historial: ValidacionHistorial[]
-}
-
-export interface Propietario {
-  id: number
-  tipo_entidad: "prospecto" | "alumno"
-  folio: string
-  nombre_completo: string
-  programa_academico?: string
-  grado_academico?: string
-  email?: string
-  telefono?: string
-}
-
-export interface MetadataInscripciones {
-  sistema_origen: string
-  propietario: Propietario
-  validacion: Validacion
+  estado_actual: "VALIDADO" | "RECHAZADO" | "PENDIENTE" | "EN_REVISION"
+  historial: HistorialValidacion[]
 }
 
 export interface DocumentMetadata {
-  // Legacy fields
-  status?: "VALIDADO" | "PENDIENTE" | "RECHAZADO"
-  ciclo?: string
-  origen?: string
-  comentario?: string
-  historial_cambios?: HistorialCambio[]
-  // Nueva estructura de inscripciones
-  sistema_origen?: string
-  propietario?: Propietario
-  validacion?: Validacion
-  [key: string]: any
+  sistema_origen: string
+  datos_generales: DatosGenerales
+  validacion: Validacion
+  [key: string]: any // Para campos extra opcionales
+}
+
+// ===================================================
+// LEGACY - Solo para compatibilidad con docs antiguos
+// ===================================================
+
+export interface ArchivoMetadata {
+  nombre: string
+  estado_actual: string
+  historial: Array<{
+    fecha: string
+    accion: string
+    usuario: string
+    notas?: string
+  }>
+}
+
+export interface EntidadDatos {
+  folio: string
+  name: string
+  gradoAcademico: string
+  programaAcademico: string
+}
+
+export interface Entidad {
+  tipo: "prospecto" | "alumno"
+  id: number
+  datos: EntidadDatos
 }
 
 export interface Document {
@@ -73,6 +83,27 @@ export interface DocumentUploadRequest {
 }
 
 export interface DocumentListResponse extends Array<Document> {}
+
+// Bulk Upload Types
+export interface BulkUploadResult {
+  file_name: string
+  doc_type: string
+  status: "success" | "error"
+  document_id?: string
+  version_id?: string
+  file_size_bytes?: number
+  error?: string
+  message?: string
+}
+
+export interface BulkUploadResponse {
+  message: string
+  owner_ref: number
+  total_uploaded: number
+  total_failed: number
+  results: BulkUploadResult[]
+  errors: any[]
+}
 
 // Auth Types
 export interface TokenResponse {
@@ -96,3 +127,48 @@ export interface FileItem {
 
 export type SortField = "filename" | "size" | "modified" | "created_at" | "upload_date"
 export type SortOrder = "asc" | "desc"
+
+// Document types catalog
+export const DOCUMENT_TYPES = [
+  { code: "INE_FRONT", name: "INE (Frente)", description: "Identificación oficial frontal" },
+  { code: "INE_BACK", name: "INE (Reverso)", description: "Identificación oficial reverso" },
+  { code: "ACTA_NAC", name: "Acta de Nacimiento", description: "Copia certificada" },
+  { code: "CURP", name: "CURP", description: "Formato actualizado" },
+  { code: "KARDEX", name: "Kárdex / Certificado", description: "Documento académico previo" },
+  { code: "COMP_DOM", name: "Comprobante Domicilio", description: "Vigencia menor a 3 meses" },
+] as const
+
+export type DocumentTypeCode = typeof DOCUMENT_TYPES[number]["code"]
+
+/**
+ * Mapea el nombre del tipo de documento (type_name) a su código (type_code)
+ * Útil cuando el backend no devuelve type_code pero sí type_name
+ * Soporta coincidencias exactas, por código, o coincidencias parciales
+ */
+export function getDocumentTypeCode(typeName: string): DocumentTypeCode | null {
+  if (!typeName) return null
+
+  const normalizedInput = typeName.toLowerCase().trim()
+
+  // Intento 1: Coincidencia exacta con el nombre
+  let docType = DOCUMENT_TYPES.find(
+    dt => dt.name.toLowerCase() === normalizedInput
+  )
+
+  if (docType) return docType.code
+
+  // Intento 2: Coincidencia exacta con el código
+  docType = DOCUMENT_TYPES.find(
+    dt => dt.code === typeName
+  )
+
+  if (docType) return docType.code
+
+  // Intento 3: Coincidencia parcial (type_name contiene o está contenido en name)
+  docType = DOCUMENT_TYPES.find(dt => {
+    const normalizedName = dt.name.toLowerCase()
+    return normalizedName.includes(normalizedInput) || normalizedInput.includes(normalizedName)
+  })
+
+  return docType ? docType.code : null
+}

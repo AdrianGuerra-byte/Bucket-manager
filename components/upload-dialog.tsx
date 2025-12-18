@@ -11,7 +11,13 @@ import { useToast } from "@/hooks/use-toast"
 import { useApiClient } from "@/hooks/use-api-client"
 import { formatBytes } from "@/utils/formatters"
 import { cn } from "@/lib/utils"
-import { MetadataInscripciones } from "@/types/files"
+import {
+  buildDocumentMetadata,
+  SISTEMAS,
+  ESTADOS_VALIDACION,
+  type BuildMetadataParams,
+  generateFolio
+} from "@/lib/metadata-helpers-new"
 
 interface UploadDialogProps {
   ownerRef?: number | string
@@ -59,10 +65,10 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
   const [docType, setDocType] = useState<string>("")
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  
+
   // Existing user mode
   const [existingOwnerRef, setExistingOwnerRef] = useState<string>(ownerRef?.toString() || "")
-  
+
   // New prospecto mode
   const [newFolio, setNewFolio] = useState<string>("")
   const [nombreCompleto, setNombreCompleto] = useState<string>("")
@@ -70,10 +76,10 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
   const [programaAcademico, setProgramaAcademico] = useState<string>("")
   const [email, setEmail] = useState<string>("")
   const [telefono, setTelefono] = useState<string>("")
-  
+
   // Document metadata
   const [comentarioInicial, setComentarioInicial] = useState<string>("")
-  
+
   const { toast } = useToast()
   const apiClient = useApiClient()
 
@@ -151,7 +157,7 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
     }
 
     let finalOwnerRef: number
-    let metadata: MetadataInscripciones
+    let metadata: any
 
     if (uploadMode === "existing") {
       if (!existingOwnerRef.trim()) {
@@ -163,30 +169,32 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
         return
       }
       finalOwnerRef = parseInt(existingOwnerRef)
-      
-      // Solo enviar la nueva entrada del historial (el backend hace el merge)
-      metadata = {
-        sistema_origen: "portal_inscripciones",
-        propietario: {
-          id: finalOwnerRef,
-          tipo_entidad: "alumno",
-          folio: existingOwnerRef,
-          nombre_completo: "Alumno Existente", // TODO: obtener nombre real si está disponible
-        },
-        validacion: {
-          estado_actual: "pendiente",
-          ultima_actualizacion: new Date().toISOString(),
-          historial: [
-            // SOLO LA NUEVA ENTRADA - el backend la agregará al historial existente
-            {
-              timestamp: new Date().toISOString(),
-              revisor: "Sistema",
-              estado: "pendiente",
-              comentarios: comentarioInicial || "Documento actualizado por usuario",
-            },
-          ],
-        },
+
+      // ⚠️ ACTUALIZACIÓN: Enviar metadata completo con historial VACÍO
+      // El backend hace MERGE automático del validacion.historial
+      metadata = buildDocumentMetadata({
+        sistema_origen: SISTEMAS.INSCRIPCIONES,
+        id_interno: finalOwnerRef,
+        folio: existingOwnerRef, // Usar el folio/matrícula ingresado
+        nombre_completo: "USUARIO EXISTENTE", // Se sobrescribirá con datos de BD
+        programa_academico: "SIN ESPECIFICAR",
+        grado_academico: "Licenciatura",
+        estado_inicial: ESTADOS_VALIDACION.PENDIENTE,
+        comentario: comentarioInicial || undefined // Comentario va al historial
+      })
+
+      console.log("=== ACTUALIZACIÓN DE DOCUMENTO (MERGE BACKEND) ===")
+      console.log("Owner Ref:", finalOwnerRef)
+      console.log("Doc Type:", docType)
+      console.log("Archivo:", selectedFile.name)
+      if (comentarioInicial) {
+        console.log("💬 Comentario:", comentarioInicial)
+        console.log("➡️ Se agregará al historial automáticamente")
       }
+      console.log("\n📤 Metadata enviado:")
+      console.log(JSON.stringify(metadata, null, 2))
+      console.log("\n⚠️ validacion.historial: [] (vacío)")
+      console.log("✅ El backend hará MERGE y preservará el historial existente")
     } else {
       // Modo crear prospecto nuevo
       if (!newFolio.trim() || !nombreCompleto.trim()) {
@@ -199,33 +207,31 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
       }
 
       finalOwnerRef = parseInt(newFolio)
-      
-      // Primera subida - metadata completa con primer historial
-      metadata = {
-        sistema_origen: "portal_inscripciones",
-        propietario: {
-          id: finalOwnerRef,
-          tipo_entidad: "prospecto",
-          folio: newFolio,
-          nombre_completo: nombreCompleto,
-          programa_academico: programaAcademico || undefined,
-          grado_academico: gradoAcademico || undefined,
-          email: email || undefined,
-          telefono: telefono || undefined,
-        },
-        validacion: {
-          estado_actual: "pendiente",
-          ultima_actualizacion: new Date().toISOString(),
-          historial: [
-            {
-              timestamp: new Date().toISOString(),
-              revisor: "Sistema",
-              estado: "pendiente",
-              comentarios: comentarioInicial || "Documento inicial de prospecto",
-            },
-          ],
-        },
+
+      // ✅ PRIMERA SUBIDA: Metadata completo con nueva estructura genérica
+      metadata = buildDocumentMetadata({
+        sistema_origen: SISTEMAS.INSCRIPCIONES,
+        id_interno: finalOwnerRef,
+        folio: newFolio,
+        nombre_completo: nombreCompleto.toUpperCase(),
+        programa_academico: programaAcademico.toUpperCase() || "SIN ESPECIFICAR",
+        grado_academico: gradoAcademico || "Licenciatura",
+        estado_inicial: ESTADOS_VALIDACION.PENDIENTE,
+        comentario: comentarioInicial || undefined // Comentario inicial
+      })
+
+      console.log("=== CREAR PROSPECTO NUEVO ===")
+      console.log("Owner Ref:", finalOwnerRef)
+      console.log("Doc Type:", docType)
+      console.log("Folio:", newFolio)
+      console.log("Nombre:", nombreCompleto)
+      if (comentarioInicial) {
+        console.log("💬 Comentario inicial:", comentarioInicial)
+        console.log("➡️ Se agregará al historial en el primer evento")
       }
+      console.log("\n📤 Metadata completo:")
+      console.log(JSON.stringify(metadata, null, 2))
+      console.log("\n⚠️ validacion.historial: [] (vacío - backend inicializará)")
     }
 
     setUploading(true)
@@ -234,20 +240,21 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
         file: selectedFile,
         owner_ref: finalOwnerRef,
         doc_type: docType,
-        metadata: metadata as any,
+        metadata: metadata,
       })
-      
+
       toast({
-        title: uploadMode === "new" ? "Prospecto creado" : "Documento subido",
-        description: uploadMode === "new" 
+        title: uploadMode === "new" ? "✅ Prospecto creado" : "✅ Documento actualizado",
+        description: uploadMode === "new"
           ? `Se creó el prospecto ${newFolio} y se subió el documento`
-          : `${selectedFile.name} se subió correctamente`,
+          : `${selectedFile.name} se actualizó correctamente (historial preservado)`,
       })
-      
+
       resetForm()
       onSuccess()
       onOpenChange(false)
     } catch (error) {
+      console.error("Error al subir documento:", error)
       toast({
         title: "Error al subir",
         description: error instanceof Error ? error.message : "Error desconocido",
@@ -542,10 +549,10 @@ export function UploadDialog({ ownerRef, open, onOpenChange, onSuccess, mode = "
               onClick={handleUpload}
               disabled={!selectedFile || !docType || uploading}
             >
-              {uploading 
-                ? "Subiendo..." 
-                : uploadMode === "new" 
-                  ? "Crear Prospecto y Subir" 
+              {uploading
+                ? "Subiendo..."
+                : uploadMode === "new"
+                  ? "Crear Prospecto y Subir"
                   : "Subir Documento"}
             </Button>
           </div>

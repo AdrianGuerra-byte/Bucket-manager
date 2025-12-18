@@ -1,33 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DocumentList } from "./document-list"
 import { UploadDialog } from "./upload-dialog"
+import { BulkUploadDialog } from "./bulk-upload-dialog"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
 import { Label } from "./ui/label"
 import { Checkbox } from "./ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Search, UserPlus, Filter } from "lucide-react"
-
-const DOCUMENT_TYPES = [
-  { code: "INE_FRONT", name: "INE (Frente)", description: "Identificación oficial frontal" },
-  { code: "INE_BACK", name: "INE (Reverso)", description: "Identificación oficial reverso" },
-  { code: "ACTA_NAC", name: "Acta de Nacimiento", description: "Copia certificada" },
-  { code: "CURP", name: "CURP", description: "Formato actualizado" },
-  { code: "KARDEX", name: "Kárdex / Certificado", description: "Documento académico previo" },
-  { code: "COMP_DOM", name: "Comprobante Domicilio", description: "Vigencia menor a 3 meses" },
-] as const
-
-export type DocumentTypeCode = typeof DOCUMENT_TYPES[number]["code"]
+import { DOCUMENT_TYPES, type DocumentTypeCode } from "@/types/files"
+import { useSearchParams } from "next/navigation"
 
 export function DocumentDashboard() {
-  const [ownerRef, setOwnerRef] = useState<string>("")
-  const [activeOwnerRef, setActiveOwnerRef] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const urlOwnerRef = searchParams.get("ownerRef")
+
+  const [ownerRef, setOwnerRef] = useState<string>(urlOwnerRef || "")
+  const [activeOwnerRef, setActiveOwnerRef] = useState<string | null>(urlOwnerRef || null)
   const [selectedDocTypes, setSelectedDocTypes] = useState<DocumentTypeCode[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showBulkUploadDialog, setShowBulkUploadDialog] = useState(false)
   const [uploadMode, setUploadMode] = useState<"existing" | "new">("new")
+
+  // Activar búsqueda automáticamente si hay ownerRef en la URL
+  useEffect(() => {
+    if (urlOwnerRef && urlOwnerRef.trim()) {
+      setOwnerRef(urlOwnerRef.trim())
+      setActiveOwnerRef(urlOwnerRef.trim())
+
+      // Limpiar la URL después de procesar el parámetro
+      const url = new URL(window.location.href)
+      url.searchParams.delete("ownerRef")
+      window.history.replaceState({}, "", url.toString())
+    }
+  }, [urlOwnerRef])
 
   const handleToggleDocType = (typeCode: DocumentTypeCode) => {
     setSelectedDocTypes(prev =>
@@ -50,8 +59,7 @@ export function DocumentDashboard() {
   }
 
   const handleCreateProspect = () => {
-    setUploadMode("new")
-    setShowUploadDialog(true)
+    setShowBulkUploadDialog(true)
   }
 
   const handleUploadSuccess = () => {
@@ -190,6 +198,12 @@ export function DocumentDashboard() {
           onSuccess={handleUploadSuccess}
           mode={uploadMode}
         />
+        <BulkUploadDialog
+          open={showBulkUploadDialog}
+          onOpenChange={setShowBulkUploadDialog}
+          onUploadComplete={handleUploadSuccess}
+          mode="new"
+        />
       </>
     )
   }
@@ -219,9 +233,9 @@ export function DocumentDashboard() {
           Nueva Búsqueda
         </Button>
       </div>
-      
-      <DocumentList 
-        ownerRef={activeOwnerRef} 
+
+      <DocumentList
+        ownerRef={activeOwnerRef}
         docTypes={selectedDocTypes.length > 0 ? selectedDocTypes : undefined}
       />
     </div>

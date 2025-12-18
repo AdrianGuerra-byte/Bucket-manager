@@ -5,6 +5,7 @@ import type { Document, SortField, SortOrder } from "@/types/files"
 import { useApiClient } from "@/hooks/use-api-client"
 import { DocumentCard } from "./document-card"
 import { UploadDialog } from "./upload-dialog"
+import { UpdateDocumentDialog } from "./update-document-dialog"
 import { ConfirmModal } from "./confirm-modal"
 import { DocumentHistoryDialog } from "./document-history-dialog"
 import { Input } from "@/components/ui/input"
@@ -29,6 +30,8 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
+  const [documentToUpdate, setDocumentToUpdate] = useState<Document | null>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null)
@@ -47,11 +50,12 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
     setError(null)
     try {
       const docs = await apiClient.listDocuments(ownerRef, docTypes)
-      console.log(`[DocumentList] Documentos recibidos:`, docs)
+      console.log(`[DocumentList] ${docs.length} documento(s) cargado(s) para owner_ref: ${ownerRef}`)
+
       // Asegurar que siempre sea un array
       const docsArray = Array.isArray(docs) ? docs : []
       setDocuments(docsArray)
-      
+
       if (docsArray.length === 0) {
         console.log(`[DocumentList] No hay documentos para owner_ref: ${ownerRef}`)
         toast({
@@ -85,7 +89,7 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
       const matchesSearch =
         doc.type_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.file_name.toLowerCase().includes(searchQuery.toLowerCase())
-      
+
       if (!matchesSearch) return false
 
       if (filterStatus === "all") return true
@@ -171,7 +175,34 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
     setDeleteModalOpen(true)
   }
 
+  const handleUpdate = (doc: Document) => {
+    console.log("=== ACTUALIZAR DOCUMENTO ===")
+    console.log("Documento:", doc.file_name)
+    console.log("Document ID:", doc.document_id)
+    setDocumentToUpdate(doc)
+    setUpdateDialogOpen(true)
+  }
+
   const handleViewHistory = (doc: Document) => {
+    console.log("=== VER HISTORIAL (NUEVA ESTRUCTURA) ===")
+    console.log("Documento:", doc.file_name)
+    console.log("Metadata completo:", JSON.stringify(doc.metadata, null, 2))
+    console.log("metadata.validacion:", doc.metadata?.validacion)
+    console.log("validacion.historial:", doc.metadata?.validacion?.historial)
+    console.log("Número de eventos:", doc.metadata?.validacion?.historial?.length || 0)
+
+    if (doc.metadata?.validacion?.historial && Array.isArray(doc.metadata.validacion.historial)) {
+      console.log("✅ Historial de validación encontrado:")
+      doc.metadata.validacion.historial.forEach((evento: any, idx: number) => {
+        console.log(`  ${idx + 1}. ${evento.estado} - ${evento.timestamp} - ${evento.revisor}`)
+        if (evento.comentarios) {
+          console.log(`      💬 "${evento.comentarios}"`)
+        }
+      })
+    } else {
+      console.warn("⚠️ NO se encontró validacion.historial en metadata")
+    }
+
     setHistoryDocument(doc)
     setHistoryDialogOpen(true)
   }
@@ -237,7 +268,7 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
             className="pl-9"
           />
         </div>
-        
+
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Estado" />
@@ -297,6 +328,7 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
               onPreview={handlePreview}
               onDownload={handleDownload}
               onDelete={handleDeleteClick}
+              onUpdate={handleUpdate}
               onViewHistory={handleViewHistory}
             />
           ))}
@@ -308,6 +340,13 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         ownerRef={ownerRef}
+        onSuccess={loadDocuments}
+      />
+
+      <UpdateDocumentDialog
+        document={documentToUpdate}
+        open={updateDialogOpen}
+        onOpenChange={setUpdateDialogOpen}
         onSuccess={loadDocuments}
       />
 
