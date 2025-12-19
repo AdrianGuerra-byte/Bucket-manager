@@ -166,8 +166,23 @@ export function BulkUploadDialog({
       formData.append("doc_types", JSON.stringify(files.map((f) => f.docType)))
 
       // Crear un array de metadata (uno por cada archivo) - NUEVA ESTRUCTURA GENÉRICA
-      const metadataArray = files.map((item) =>
-        buildBulkMetadata({
+      console.log("\n" + "=".repeat(80))
+      console.log("🚀 INICIANDO BULK UPLOAD - NUEVO PROSPECTO")
+      console.log("=".repeat(80))
+      console.log("\n📋 DATOS DEL PROSPECTO:")
+      console.log("  - Matrícula/Folio:", ownerRef)
+      console.log("  - Nombre Completo:", nombreProspecto)
+      console.log("  - Programa Académico:", programaAcademico)
+      console.log("  - Grado Académico:", gradoAcademico)
+      console.log("\n📁 ARCHIVOS A SUBIR:", files.length)
+      files.forEach((f, idx) => {
+        console.log(`  [${idx}] ${f.file.name} (${(f.file.size / 1024).toFixed(2)} KB) → Tipo: ${f.docType}`)
+      })
+
+      console.log("\n🔨 CONSTRUYENDO METADATA CON buildBulkMetadata()...")
+
+      const metadataArray = files.map((item, index) => {
+        const params = {
           sistema_origen: SISTEMAS.INSCRIPCIONES,
           id_interno: parseInt(ownerRef),
           folio: ownerRef,
@@ -176,32 +191,39 @@ export function BulkUploadDialog({
           grado_academico: gradoAcademico,
           estado_inicial: ESTADOS_VALIDACION.PENDIENTE,
           comentario: `Documento ${item.file.name} subido durante el registro de prospecto`
-        })
-      )
-
-      formData.append("metadata", JSON.stringify(metadataArray))
-
-      // Debug: Log what we're sending
-      console.log("=== BULK UPLOAD (NUEVA ESTRUCTURA GENÉRICA) ===")
-      console.log("Owner Ref:", ownerRef)
-      console.log("Files count:", files.length)
-      console.log("Doc types:", files.map((f) => f.docType))
-      console.log("\n📦 Metadata por archivo:")
-      metadataArray.forEach((meta, idx) => {
-        console.log(`  [${idx}] ${files[idx].file.name}:`, JSON.stringify(meta, null, 2))
-      })
-      console.log("\n⚠️ Todos con validacion.historial: [] (vacío)")
-      console.log("✅ El backend inicializará el historial para cada documento")
-      console.log("\nFormData entries:")
-      for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`  ${key}: ${value.name} (${value.size} bytes)`)
-        } else if (key === 'metadata') {
-          console.log(`  ${key}: [array de ${metadataArray.length} objetos]`)
-        } else {
-          console.log(`  ${key}: ${value}`)
         }
-      }
+
+        console.log(`\n📝 Parámetros para buildBulkMetadata [${index}]:`)
+        console.log("  ", JSON.stringify(params, null, 2))
+
+        const metadata = buildBulkMetadata(params)
+
+        console.log(`\n✅ Metadata generado [${index}] para ${item.file.name}:`)
+        console.log("  ", JSON.stringify(metadata, null, 2))
+
+        return metadata
+      })
+
+      const metadataJSON = JSON.stringify(metadataArray)
+      formData.append("metadata", metadataJSON)
+
+      console.log("\n📤 FORMDATA COMPLETO A ENVIAR:")
+      console.log("  - owner_ref:", ownerRef)
+      console.log("  - doc_types:", JSON.stringify(files.map((f) => f.docType)))
+      console.log("  - files:", files.length, "archivos")
+      console.log("  - metadata (JSON string):")
+      console.log("    ", metadataJSON.substring(0, 200) + "...")
+      console.log("\n🔍 METADATA PARSEADO COMPLETO (para verificar):")
+      console.log(JSON.parse(metadataJSON))
+
+      console.log("\n📋 VERIFICACIÓN FINAL:")
+      console.log("  ✓ Cantidad de archivos:", files.length)
+      console.log("  ✓ Cantidad de doc_types:", files.map((f) => f.docType).length)
+      console.log("  ✓ Cantidad de metadatas:", metadataArray.length)
+      console.log("  ✓ Todos coinciden:", files.length === metadataArray.length)
+      console.log("\n" + "=".repeat(80))
+      console.log("🚀 ENVIANDO REQUEST AL BACKEND...")
+      console.log("=".repeat(80) + "\n")
 
       // Actualizar estados a "uploading"
       setFiles((prev) =>
@@ -210,10 +232,26 @@ export function BulkUploadDialog({
 
       const response = await apiClient.uploadMultipleDocuments(formData)
 
-      // Debug: Log response
-      console.log("Backend response:", response)
-      console.log("Files enviados:", files.map(f => f.file.name))
-      console.log("Results recibidos:", response.results.map((r: any) => r.file_name))
+      console.log("\n" + "=".repeat(80))
+      console.log("✅ RESPUESTA DEL BACKEND RECIBIDA")
+      console.log("=".repeat(80))
+      console.log("\n📦 Response completo:")
+      console.log(JSON.stringify(response, null, 2))
+      console.log("\n📊 Archivos enviados vs resultados:")
+      console.log("  - Enviados:", files.length, "archivos")
+      console.log("  - Resultados:", response.results?.length || 0, "documentos")
+      files.forEach((f, idx) => {
+        console.log(`  [${idx}] Enviado: ${f.file.name} (${f.docType})`)
+      })
+      if (response.results) {
+        response.results.forEach((r: any, idx: number) => {
+          console.log(`  [${idx}] Resultado: ${r.file_name} - Status: ${r.success ? '✅ SUCCESS' : '❌ ERROR'}`)
+          if (r.metadata) {
+            console.log(`       Metadata devuelto:`, JSON.stringify(r.metadata, null, 2))
+          }
+        })
+      }
+      console.log("=".repeat(80) + "\n")
 
       // Validar que la respuesta tenga el formato esperado
       if (!response || !response.results || !Array.isArray(response.results)) {

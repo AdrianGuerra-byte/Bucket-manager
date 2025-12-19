@@ -237,8 +237,8 @@ export function DocumentHistoryDialog({
                   </div>
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {/* Mostrar del más reciente al más antiguo */}
-                    {[...metadata.validacion.historial].reverse().map((evento: any, evIdx: number) => {
+                    {/* Mostrar del más antiguo al más reciente (orden cronológico) */}
+                    {metadata.validacion.historial.map((evento: any, evIdx: number) => {
                       const isFirst = evIdx === 0
                       const isLast = evIdx === metadata.validacion.historial.length - 1
 
@@ -247,7 +247,7 @@ export function DocumentHistoryDialog({
                           key={evIdx}
                           className={cn(
                             "bg-white/70 dark:bg-black/30 rounded-lg p-3 space-y-2 text-xs border-l-4",
-                            isFirst
+                            isLast
                               ? "border-green-500 shadow-md"
                               : "border-gray-300 dark:border-gray-700"
                           )}
@@ -259,12 +259,12 @@ export function DocumentHistoryDialog({
                                 {evento.timestamp ? formatDate(evento.timestamp) : "Sin fecha"}
                               </span>
                             </div>
-                            {isFirst && (
+                            {isLast && (
                               <Badge variant="default" className="text-xs bg-green-600">
                                 Más reciente
                               </Badge>
                             )}
-                            {isLast && (
+                            {isFirst && (
                               <Badge variant="outline" className="text-xs">
                                 Inicial
                               </Badge>
