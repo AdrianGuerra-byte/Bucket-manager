@@ -24,6 +24,7 @@ export class ApiClient {
       headers: {
         ...options.headers,
         Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
       },
     })
 
@@ -157,6 +158,7 @@ export class ApiClient {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
         // Don't set Content-Type, browser will set it with boundary for multipart/form-data
       },
       body: formData,
@@ -256,6 +258,7 @@ export class ApiClient {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
         // Don't set Content-Type, browser will set it with boundary for multipart/form-data
       },
       body: formData,
@@ -314,6 +317,7 @@ export class ApiClient {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
       },
       body: formData,
     })

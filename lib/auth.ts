@@ -45,6 +45,7 @@ export async function authenticateWithCredentials(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       },
       body: JSON.stringify({
         client_id: clientId,
@@ -125,6 +126,7 @@ export async function refreshAccessToken(): Promise<string> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
     body: JSON.stringify({
       client_id: clientId,
