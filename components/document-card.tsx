@@ -4,7 +4,7 @@ import { Document } from "@/types/files"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, Eye, Trash2, FileText, Image as ImageIcon, CheckCircle2, Clock, XCircle, History, User, Building2, Mail, Phone, GraduationCap, BookOpen, RefreshCw } from "lucide-react"
+import { Download, Eye, Trash2, FileText, Image as ImageIcon, CheckCircle2, Clock, XCircle, History, User, Building2, Mail, Phone, GraduationCap, BookOpen, RefreshCw, PenSquare } from "lucide-react"
 import { formatBytes } from "@/utils/formatters"
 import { formatDate } from "@/utils/formatters"
 
@@ -15,9 +15,10 @@ interface DocumentCardProps {
   onDelete: (doc: Document) => void
   onViewHistory: (doc: Document) => void
   onUpdate: (doc: Document) => void
+  onChangeStatus: (doc: Document) => void
 }
 
-export function DocumentCard({ document, onPreview, onDownload, onDelete, onViewHistory, onUpdate }: DocumentCardProps) {
+export function DocumentCard({ document, onPreview, onDownload, onDelete, onViewHistory, onUpdate, onChangeStatus }: DocumentCardProps) {
   const getStatusBadge = (status?: string) => {
     if (!status) return null
 
@@ -436,6 +437,14 @@ export function DocumentCard({ document, onPreview, onDownload, onDelete, onView
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Actualizar
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onChangeStatus(document)}
+          title="Cambiar estatus del documento"
+        >
+          <PenSquare className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"

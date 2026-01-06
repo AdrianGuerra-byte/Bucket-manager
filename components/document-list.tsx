@@ -6,6 +6,7 @@ import { useApiClient } from "@/hooks/use-api-client"
 import { DocumentCard } from "./document-card"
 import { UploadDialog } from "./upload-dialog"
 import { UpdateDocumentDialog } from "./update-document-dialog"
+import { ChangeStatusDialog } from "./change-status-dialog"
 import { ConfirmModal } from "./confirm-modal"
 import { DocumentHistoryDialog } from "./document-history-dialog"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,8 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
   const [documentToUpdate, setDocumentToUpdate] = useState<Document | null>(null)
+  const [changeStatusDialogOpen, setChangeStatusDialogOpen] = useState(false)
+  const [documentToChangeStatus, setDocumentToChangeStatus] = useState<Document | null>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null)
@@ -183,6 +186,15 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
     setUpdateDialogOpen(true)
   }
 
+  const handleChangeStatus = (doc: Document) => {
+    console.log("=== CAMBIAR ESTATUS ===")
+    console.log("Documento:", doc.file_name)
+    console.log("Document ID:", doc.document_id)
+    console.log("Estatus actual:", doc.status)
+    setDocumentToChangeStatus(doc)
+    setChangeStatusDialogOpen(true)
+  }
+
   const handleViewHistory = (doc: Document) => {
     console.log("=== VER HISTORIAL (NUEVA ESTRUCTURA) ===")
     console.log("Documento:", doc.file_name)
@@ -329,6 +341,7 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
               onDownload={handleDownload}
               onDelete={handleDeleteClick}
               onUpdate={handleUpdate}
+              onChangeStatus={handleChangeStatus}
               onViewHistory={handleViewHistory}
             />
           ))}
@@ -348,6 +361,13 @@ export function DocumentList({ ownerRef, docTypes }: DocumentListProps) {
         open={updateDialogOpen}
         onOpenChange={setUpdateDialogOpen}
         onSuccess={loadDocuments}
+      />
+
+      <ChangeStatusDialog
+        document={documentToChangeStatus}
+        open={changeStatusDialogOpen}
+        onOpenChange={setChangeStatusDialogOpen}
+        onStatusChanged={loadDocuments}
       />
 
       <ConfirmModal

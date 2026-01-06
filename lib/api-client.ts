@@ -303,6 +303,63 @@ export class ApiClient {
   }
 
   /**
+   * Update document status (without uploading a new file)
+   * PATCH /documents/{document_id}/status
+   */
+  async updateDocumentStatus(
+    documentId: string,
+    estado: "PENDIENTE" | "VALIDADO" | "RECHAZADO",
+    revisor: string,
+    comentarios?: string
+  ): Promise<any> {
+    const token = await this.getToken()
+
+    const formData = new FormData()
+    formData.append("estado", estado)
+    formData.append("revisor", revisor)
+    if (comentarios) {
+      formData.append("comentarios", comentarios)
+    }
+
+    console.log("=== API CLIENT: updateDocumentStatus ===")
+    console.log("URL:", `${this.baseUrl}/documents/${documentId}/status`)
+    console.log("Estado:", estado)
+    console.log("Revisor:", revisor)
+    console.log("Comentarios:", comentarios || "(sin comentarios)")
+
+    const response = await fetch(`${this.baseUrl}/documents/${documentId}/status`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: formData,
+    })
+
+    console.log("Response status:", response.status)
+
+    if (!response.ok) {
+      if (response.status === 400) {
+        const error = await response.json().catch(() => ({ detail: "Error de validación" }))
+        throw new Error(error.detail || "Datos inválidos")
+      }
+      if (response.status === 403) {
+        throw new Error("No tienes permiso para modificar este documento")
+      }
+      if (response.status === 404) {
+        throw new Error("Documento no encontrado")
+      }
+
+      const error = await response.json().catch(() => ({ detail: "Error al actualizar estatus" }))
+      throw new Error(error.detail || `Error ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log("[ApiClient] Estatus actualizado:", result)
+    return result
+  }
+
+  /**
    * Upload multiple documents at once
    * POST /documents/upload-multiple
    */
